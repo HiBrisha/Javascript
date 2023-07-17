@@ -8,7 +8,9 @@
 const mssql = require("mssql");
 const fs = require("fs");
 const MySqlServer = require("./sql_class.js");
+const dataProcess = require("./json_data_process.js");
 
+//Khai bao thong tin ket noi
 const connection = new MySqlServer(
   "192.168.54.201",
   "xhquser",
@@ -17,20 +19,31 @@ const connection = new MySqlServer(
   mssql
 );
 
+//ket noi database
 connection.connect((err) => {
   if (err) {
     return;
   }
+
+  //query database
   connection.excuteQuery(
     "SELECT [ASSETID],[ASSETID_PARENT],[ASSETID_ORG],[ASSETDESC]FROM [AV_QLKT_INFO].[dbo].[A_ASSET]",
     (err, result) => {
       if (err) {
         return;
       }
-      const hierarchyObj = buildHierarchy(result);
+      //Xử lý dữ liệu
+      const rootData = new dataProcess(result);
       const filePath = "output.txt";
 
-      exportToTxt(hierarchyObj, filePath);
+      exportToTxt(rootData.selectParents(), filePath);
+
+      //Ngắt kết nối database
+      connection.disconnect((err) => {
+        if (err) {
+          return;
+        }
+      });
     }
   );
 });

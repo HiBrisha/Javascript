@@ -30,8 +30,12 @@ class MySqlServer {
   }
 
   //================== ngắt kết nối ====================//
-  disconnect() {
-    this.mssql.close();
+  disconnect(callback) {
+    this.mssql.close((err) => {
+      err
+        ? (console.log("Lỗi ngắt kết nối: ", err), callback(err))
+        : console.log("Đã ngắt kết nối MSSQL");
+    });
   }
 
   excuteQuery(query, callback) {
