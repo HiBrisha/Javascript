@@ -29,20 +29,34 @@ class dataProcess {
 
     return this.dataParents;
   }
+
+  addChildren() {
+    this.children = this.data.filter(
+      (item) =>
+        item.ASSETID_PARENT === parentID && !item.ASSETDESC.includes("(Da xoa)")
+    );
+    this.children.length > 0
+      ? children.forEach((child) => {
+          child.children = addChildren(data, child.ASSETID);
+        })
+      : null;
+  }
 }
 
-function addChildren(data, parentID) {
+//==================Add phần tử con=========================//
+const addChildren = (data, parentID) => {
   const children = data.filter(
     (item) =>
       item.ASSETID_PARENT === parentID && !item.ASSETDESC.includes("(Da xoa)")
   );
 
-  if (children.length > 0) {
-    children.forEach((child) => {
-      child.children = addChildren(data, child.ASSETID);
-    });
-  }
+  children.length > 0
+    ? children.forEach((child) => {
+        child.children = addChildren(data, child.ASSETID);
+      })
+    : null;
 
   return children;
-}
+};
+
 module.exports = dataProcess;
