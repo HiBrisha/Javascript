@@ -6,6 +6,7 @@
 //=====================***=============================//
 //import thư viện
 const mssql = require("mssql");
+const XLSX = require("xlsx");
 const fs = require("fs");
 const MySqlServer = require("./sql_class.js");
 const dataProcess = require("./json_data_process.js");
@@ -35,8 +36,10 @@ connection.connect((err) => {
       //Xử lý dữ liệu
       const rootData = new dataProcess(result);
       const filePath = "output.txt";
+      const data = rootData.selectParents();
+      exportToExcel(data, "output.xlsx");
 
-      exportToTxt(rootData.selectParents(), filePath);
+      exportToTxt(data, filePath);
 
       //Ngắt kết nối database
       connection.disconnect((err) => {
@@ -47,34 +50,6 @@ connection.connect((err) => {
     }
   );
 });
-
-function buildHierarchy(data) {
-  const hierarchy = {};
-
-  // Tạo một mảng các đối tượng cha (parent) chưa được xác định
-  const parents = data.filter((item) => item.ASSETID_PARENT === null);
-
-  // Điều chỉnh các đối tượng con (children) cho mỗi đối tượng cha
-  parents.forEach((parent) => {
-    parent.children = findChildren(parent.ASSETID, data);
-  });
-
-  // Xây dựng đối tượng hierarchy với đối tượng cha chưa được xác định
-  hierarchy.parents = parents;
-
-  return hierarchy;
-}
-
-function findChildren(parentId, data) {
-  const children = data.filter((item) => item.ASSETID_PARENT === parentId);
-
-  // Điều chỉnh các đối tượng con (children) cho mỗi đối tượng con
-  children.forEach((child) => {
-    child.children = findChildren(child.ASSETID, data);
-  });
-
-  return children;
-}
 
 function exportToTxt(data, filePath) {
   const content = JSON.stringify(data, null, 2);
@@ -87,3 +62,45 @@ function exportToTxt(data, filePath) {
     console.log("Xuất dữ liệu thành công vào file:", filePath);
   });
 }
+
+function exportToExcel(data, filename) {
+  const workbook = XLSX.utils.book_new();
+
+  data.forEach((item) => {
+    const sheetData = [];
+    sheetData.push(item);
+
+    sheetData.push(excelData(item));
+
+    const sheetName = item.ASSETID; // Tên sheet con là ASSETID của phần tử cha
+    const worksheet = XLSX.utils.json_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  });
+
+  XLSX.writeFile(workbook, filename);
+}
+
+const excelData = (data, result = {}) => {
+  result = {
+    ...result,
+    [`children_${data.level}.ASSETID`]: data.ASSETID,
+    [`children_${data.level}.ASSETID_PARENT`]: data.ASSETID_PARENT,
+    [`children_${data.level}.ASSETID_ORG`]: data.ASSETID_ORG,
+    [`children_${data.level}.ASSETDESC`]: data.ASSETDESC,
+  };
+  if (data.children && data.children.length > 0) {
+    data.children.forEach((child) => {
+      // Đệ quy gọi lại hàm excelData cho mỗi phần tử con
+      result = {
+        ...result,
+        [`children_${data.level}.ASSETID`]: data.ASSETID,
+        [`children_${data.level}.ASSETID_PARENT`]: data.ASSETID_PARENT,
+        [`children_${data.level}.ASSETID_ORG`]: data.ASSETID_ORG,
+        [`children_${data.level}.ASSETDESC`]: data.ASSETDESC,
+      };
+      result = excelData(child, result);
+    });
+  }
+
+  return result;
+};
